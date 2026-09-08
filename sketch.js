@@ -1,6 +1,7 @@
 let myShader;
 let noiseShader;
 let voronoiShader;
+let woodShader;
 
 let paletteColors = [
     [0.1, 0.2, 0.4, 1],
@@ -13,6 +14,7 @@ function setup() {
     createCanvas(400, 400, WEBGL);
     myShader = buildMaterialShader(material);
     noiseShader = buildMaterialShader(noiseMaterial);
+    // woodShader = buildMaterialShader(woodMaterial);
     // voronoiShader = buildMaterialShader(voronoiMaterial);
     noStroke();
 }
@@ -41,7 +43,25 @@ function noiseMaterial() {
     let mix2 = mix(mix1, colorC, smoothstep(0.33, 0.66, n));
     let mix3 = mix(mix2, colorD, smoothstep(0.66, 1.0, n));
 
-    finalColor.set(mix3);
+    let freqX = 2; // x 方向頻率低,紋理沿 x 軸拉長
+    let freqY = 20; // y 方向頻率高,產生細密的年輪線條
+    let maskNoise = noise(coord.x * freqX, coord.y * freqY);
+    let mask = step(0.5, maskNoise); // 白色(1)維持彩色,黑色(0)變透明
+
+    finalColor.set([mix3.x, mix3.y, mix3.z, mask]);
+    finalColor.end();
+}
+
+function woodMaterial() {
+    finalColor.begin();
+    let coord = finalColor.texCoord;
+
+    let freqX = 2; // x 方向頻率低,紋理沿 x 軸拉長
+    let freqY = 20; // y 方向頻率高,產生細密的年輪線條
+    let n = noise(coord.x * freqX, coord.y * freqY);
+
+    let bw = step(0.5, n);
+    finalColor.set([bw, bw, bw, bw]);
     finalColor.end();
 }
 
@@ -117,27 +137,47 @@ function voronoiMaterial() {
 
 
 function draw() {
-    background(245, 245, 220);
 
-    // square with the color-shifting shader
-    shader(myShader);
-    rectMode(CENTER);
-    push();
-    translate(-100, 0);
-    beginShape();
-    vertex(0, 0);
-    vertex(100, 0);
-    vertex(100, 100);
-    vertex(0, 100);
-    endShape(CLOSE);
-    pop();
+    background(245);
 
-    // circle with the noise shader
+
+    // tree shape
     shader(noiseShader);
     push();
-    translate(100, 0);
-    circle(0, 0, 100);
+    rectMode(CENTER);
+    translate(0, 0);
+    rect(0, 0, 100, 100);
     pop();
+
+    // square with the color-shifting shader
+    // shader(myShader);
+    // rectMode(CENTER);
+    // push();
+    // translate(-100, 0);
+    // beginShape();
+    // vertex(0, 0, 0, 0);
+    // vertex(100, 0, 1, 0);
+    // vertex(100, 120, 1, 1);
+    // vertex(0, 100, 0, 1);
+    // endShape(CLOSE);
+    // pop();
+
+
+    // circle with the noise shader
+    // shader(noiseShader);
+    // push();
+    // translate(100, 0);
+    // circle(0, 0, 100);
+    // pop();
+
+    // // wood-grain mask overlaid on top of the same circle: black areas become transparent
+    // shader(woodShader);
+    // push();
+    // translate(100, 0);
+    // circle(0, 0, 50);
+    // pop();
+
+
 
     // // triangle with the voronoi noise shader
     // shader(voronoiShader);
