@@ -3,6 +3,7 @@ let noiseShader;
 let voronoiShader;
 let woodShader;
 
+let list_sky = [];
 let colorArray = ["#FFEDB9", "#FFCB56", "#FFA259", "#FF7E7E"];
 
 let paletteColors = [];
@@ -13,6 +14,16 @@ function setup() {
     noStroke();
 
     paletteColors = hex2float(colorArray);
+
+    let c = new RJ_Cirlce({
+        x: 20,
+        y: 100,
+        r: 100,
+        clrarray: colorArray
+    })
+
+    list_sky.push(c)
+
 }
 
 // function material() {
@@ -29,7 +40,7 @@ function noiseMaterial() {
     finalColor.begin();
     let coord = finalColor.texCoord;
     let uSeed = uniformFloat('uSeed', () => 0);
-    let n = noise(coord.x * 1 + uSeed, coord.y * 1 + uSeed);
+    let n = noise(coord.x * 0.8 + uSeed, coord.y * 0.8 + uSeed);
 
     let colorA = uniformVec4('colorA', () => paletteColors[0]);
     let colorB = uniformVec4('colorB', () => paletteColors[1]);
@@ -74,17 +85,11 @@ function noiseMaterial() {
 function draw() {
 
     background(255, 237, 185);
-
-    // let t = millis() * 0.001;
     shader(noiseShader);
-    push();
-    rectMode(CENTER);
-    translate(0, 0);
-    noiseShader.setUniform('uSeed', 40);
-    rect(0, 0, 100, 100);
-    noiseShader.setUniform('uSeed', 100);
-    circle(50, 50, 100)
-    pop();
+
+    list_sky.forEach(c => {
+        c.draw();
+    });
 
 }
 
@@ -110,12 +115,21 @@ function hex2float(colorArr) {
 }
 
 
-class HexShape {
+class RJ_Cirlce {
     constructor(args) {
         this.x = args.x;
         this.y = args.y;
         this.r = args.r;
-        this.clrarray = [];
+        this.clrarray = args.clrarray;
         this.seed = random(10000);
+    }
+
+    draw() {
+        push();
+        translate(this.x, this.y);
+        paletteColors = hex2float(this.clrarray)
+        noiseShader.setUniform('uSeed', this.seed);
+        circle(0, 0, this.r);
+        pop();
     }
 }
