@@ -1,11 +1,13 @@
 let noiseShader;
 let list_sky = [];
 let list_hill = [];
+let padding = 100;
+
 
 
 // let colorArray = ["#FFCB56", "#FFA259", "#FF7E7E", "#F9B637", "#FFDD9C"];
 let colorArray = ["#FFDA73", "#FFC04B", "#C8DEFF", "#FFDAD7", "#FFDD9C"];
-
+let treeColorArray = ["#de980e", "#567739", "#5a6e18", "#a7be41"];
 
 let paletteColors = [];
 let maskAlpha = 1;
@@ -19,53 +21,101 @@ function setup() {
 
     paletteColors = hex2float(colorArray);
 
-    background("#FFF1CF");
-    for (let i = 0; i < 1; i++) {
-        colorArray = ["#FFC04B", "#e1edff", "#ffeed7", "#FFDD9C"];
-        // else colorArray = ["#FFDA73", "#FFC04B", "#ffa600", "#FFDD9C"];
-        colorArray = shuffle(colorArray);
-        let arr = colorArray.slice(0, 4);
-        let sky = new RJ_Rect({
-            x: -width / 2,
-            y: -height / 2,
-            w: width,
-            h: height,
-            a: 1,
-            noiseScale: 0.5,
-            clrarray: arr
-        })
-        list_sky.push(sky)
-    }
-    for (let i = 0; i < 1; i++) {
-        list_sky[i].draw();
-    }
+    // background("#FFF1CF");
+    background(245);
 
 
-    // hill
+
     colorArray = ["#FFC04B", "#e1edff", "#ffeed7", "#FFDD9C"];
     colorArray = shuffle(colorArray);
     let arr = colorArray.slice(0, 4);
-    let hill = new RJ_Hill({
-        x: 100,
-        y: 100,
-        w: 100,
-        h: 30,
+    let sky = new RJ_Rect({
+        x: -width / 2,
+        y: -height / 2,
+        w: width,
+        h: height / 2,
         a: 1,
-        noiseScale: 1,
+        noiseScale: 0.5,
         clrarray: arr
     })
-    list_hill.push(hill);
 
-    list_hill.forEach(h => {
-        h.draw();
-    })
-
+    sky.draw();
 
     resetShader();
-    blendMode(SCREEN);
+    push();
+    blendMode(MULTIPLY);
     fill("#ffa600");
-    let padding = 100;
-    circle(random(padding, width - padding) - width / 2, -height / 6, 50)
+    circle(random(padding, width - padding) - width / 2, -height / 6 + 20, 50);
+    pop();
+
+    // resetShader();
+
+
+    colorArray = ["#f9d140", "#87aa60", "#4a6e18", "#aebe41"];
+    colorArray = shuffle(colorArray);
+    arr = colorArray.slice(0, 4);
+    let grass = new RJ_Rect({
+        x: -width / 2,
+        y: -height / 6 + 30,
+        w: width,
+        h: height,
+        a: 0.7,
+        noiseScale: 0.5,
+        clrarray: arr
+    })
+
+    grass.draw();
+
+
+    // hill
+
+    let row = 5
+    for (let i = 0; i < row; i++) {
+
+        let num = fibonacci(4 + row - i); //4-
+
+        for (let j = 0; j < num; j++) {
+            let ifTree = false;
+            if (i > row || random() > 0.5) ifTree = true;
+            colorArray = ["#bcd086", "#3c6c24", "#3e502f", "#c6d661"];
+            colorArray = shuffle(colorArray);
+            let clr = colorArray.slice(0, 1);
+            let arr = expandColor(clr[0])
+            let hill = new RJ_Hill({
+                x: random(-width / 2 - padding, width / 2),
+                y: -height / 6 + pow(i, 1.5) * 30 + 30 + random(j / 2, j),
+                w: pow(i, 2) * 30 + random(20, 50),
+                h: pow(i, 2) * 3,
+                a: random(0.8, 1),
+                noiseScale: 1,
+                clrarray: arr,
+                span: i * 3 + 5,
+                ampScl: i * 20 + 20,
+                tree: ifTree
+            })
+            list_hill.push(hill);
+
+            list_hill.forEach(h => {
+                h.draw();
+            })
+        }
+    }
+
+
+
+
+    // trees
+    // let t = new RJ_Tree({
+    //     x: -100,
+    //     y: -100,
+    //     w: 30,
+    //     h: 100,
+    //     a: random(0.8, 1),
+    //     noiseScale: 1,
+    // })
+
+    // t.draw();
+
 
 
 
@@ -80,6 +130,33 @@ function setup() {
 //     finalColor.set([r, g, b, 1]);
 //     finalColor.end();
 // }
+
+function fibonacci(n) {
+    let a = 0,
+        b = 1;
+    for (let i = 0; i < n; i++) {
+        [a, b] = [b, a + b];
+    }
+    return a;
+}
+
+function expandColor(clr) {
+    let clrArr = [];
+    push();
+    colorMode(HSB);
+
+    for (let i = 0; i < 4; i++) {
+        let h = hue(color(clr));
+        let s = saturation(color(clr));
+        let b = brightness(color(clr));
+        let newClr = color(h + random(-10, 10), s + random(-10, 10), b + random(-10, 10))
+
+        clrArr.push(newClr.toString('#rrggbb'));
+    }
+    pop();
+
+    return clrArr;
+}
 
 function noiseMaterial() {
     finalColor.begin();
@@ -126,9 +203,6 @@ function noiseMaterial() {
     finalColor.end();
 }
 
-
-
-
 function draw() {
 
 
@@ -156,6 +230,11 @@ function hex2float(colorArr) {
     });
 }
 
+
+function gaussianPDF(x, peak = 0.5, width = 0.3) {
+    const exponent = -((x - peak) ** 2) / (2 * (width ** 2));
+    return Math.exp(exponent);
+}
 
 class RJ_Cirlce {
     constructor(args) {
@@ -210,6 +289,9 @@ class RJ_Hill {
         this.h = args.h;
         this.a = args.a;
         this.noiseScale = args.noiseScale;
+        this.ampScl = args.ampScl || 45;
+        this.span = args.span || 15;
+        this.tree = args.tree || false;
 
         this.clrarray = args.clrarray;
         this.seed = random(100000);
@@ -218,19 +300,115 @@ class RJ_Hill {
     draw() {
         push();
         translate(this.x, this.y);
+
+
+        if (this.tree) {
+
+            for (let i = 0; i < this.span; i++) {
+                let x = this.w - i;
+                noiseSeed(this.seed)
+                let amp = noise(x * 0.5) * this.ampScl;
+                let y = (-this.h - amp) * gaussianPDF(i / this.span);
+                let vx = this.w - i * this.w / this.span;
+
+                treeColorArray = shuffle(treeColorArray);
+                let clr = treeColorArray.slice(0, 1);
+                let arr = expandColor(clr[0])
+                for (let j = 0; j < 3; j++) {
+                    let treeHeight = random(this.h * 0.5, this.h * 0.8);
+                    let treeWidth = random(this.w / this.span * 0.2, this.w / this.span * 0.5)
+                    if (treeHeight > 3 && treeWidth > 3) {
+
+
+                        let t = new RJ_Tree({
+                            x: vx + random(-15, 15),
+                            y: y - treeHeight * 0.7 + random(10),
+                            w: random(treeWidth * 0.8, treeWidth),
+                            h: random(treeHeight * 0.8, treeHeight),
+                            a: random(0.8, 1),
+                            noiseScale: 1,
+                            ampScl: 1.5,
+                            clrarray: arr
+                        })
+
+                        t.draw();
+                    }
+                }
+
+                // resetShader();
+                // fill(255)
+                // circle(vx, y, 10);
+            }
+
+
+        }
+
+
+
+
         paletteColors = hex2float(this.clrarray);
         maskAlpha = this.a;
+        noiseScale = this.noiseScale;
         shader(noiseShader);
         noiseShader.setUniform('uSeed', this.seed);
+        noiseSeed(this.seed);
+        // texture coords must be passed explicitly for custom shapes,
+        // otherwise texCoord stays constant and the noise shader collapses to one flat color
+        let maxAmp = this.h + 50;
+
+
         beginShape();
-        vertex(0, 0);
-        vertex(this.w, 0);
-        for (let i = 0; i < 10; i++) {
-            let x = this.x + this.w - i;
-            let amp = noise(x);
-            vertex(x, this.h + amp);
+        splineVertex(0, 0, 0, 0);
+        splineVertex(this.w, 0, 1, 0);
+
+        for (let i = 0; i < this.span; i++) {
+            let x = this.w - i;
+            let amp = noise(x * 0.5) * this.ampScl;
+            let y = (-this.h - amp) * gaussianPDF(i / this.span);
+            let vx = this.w - i * this.w / this.span;
+            splineVertex(vx, y, vx / this.w, -y / maxAmp);
         }
-        endShape(CLOSE);
+        splineVertex(0, 0, 0, 0);
+        endShape();
         pop();
+    }
+}
+
+
+class RJ_Tree {
+    constructor(args) {
+        this.x = args.x;
+        this.y = args.y;
+        this.w = args.w;
+        this.h = args.h;
+        this.clrarray = args.clrarray;
+        this.a = args.a;
+        this.noiseScale = args.noiseScale;
+        this.ampScl = args.ampScl || 10;
+        this.span = args.span || 5;
+        this.seed = random(100000);
+    }
+
+    draw() {
+
+        push();
+        translate(this.x, this.y);
+        paletteColors = hex2float(this.clrarray);
+        maskAlpha = this.a;
+        noiseScale = this.noiseScale;
+        shader(noiseShader);
+        noiseShader.setUniform('uSeed', this.seed);
+        noiseSeed(this.seed);
+
+        beginShape();
+
+        splineVertex(0, 0, 0.5, 0);
+        splineVertex(-this.w / 2 + random(-this.ampScl, this.ampScl), this.h / 2 + random(-this.ampScl, this.ampScl), 0, 0.5);
+        splineVertex(0, this.h, 0.5, 1);
+        splineVertex(this.w / 2 + random(-this.ampScl, this.ampScl), this.h / 2 + random(-this.ampScl, this.ampScl), 1, 0.5);
+        endShape(CLOSE);
+
+        pop();
+
     }
 }
