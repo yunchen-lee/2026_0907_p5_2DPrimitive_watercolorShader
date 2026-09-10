@@ -1,12 +1,15 @@
-let myShader;
 let noiseShader;
-let voronoiShader;
-let woodShader;
-
 let list_sky = [];
-let colorArray = ["#FFCB56", "#FFA259", "#FF7E7E", "#F9B637", "#FFDD9C"];
+let list_hill = [];
+
+
+// let colorArray = ["#FFCB56", "#FFA259", "#FF7E7E", "#F9B637", "#FFDD9C"];
+let colorArray = ["#FFDA73", "#FFC04B", "#C8DEFF", "#FFDAD7", "#FFDD9C"];
+
 
 let paletteColors = [];
+let maskAlpha = 1;
+let noiseScale = 0.9;
 
 function setup() {
     createCanvas(400, 400, WEBGL);
@@ -16,38 +19,55 @@ function setup() {
 
     paletteColors = hex2float(colorArray);
 
-    // let c = new RJ_Cirlce({
-    //     x: 20,
-    //     y: 100,
-    //     r: 100,
-    //     clrarray: colorArray
-    // })
-
-    // list_sky.push(c)
-
-
-    for (let i = 0; i < 50; i++) {
-
+    background("#FFF1CF");
+    for (let i = 0; i < 1; i++) {
+        colorArray = ["#FFC04B", "#e1edff", "#ffeed7", "#FFDD9C"];
+        // else colorArray = ["#FFDA73", "#FFC04B", "#ffa600", "#FFDD9C"];
         colorArray = shuffle(colorArray);
         let arr = colorArray.slice(0, 4);
-        let c = new RJ_Cirlce({
-            x: random(-width / 2, width / 2),
-            y: random(-height / 2, height / 2),
-            r: random(50, 200),
+        let sky = new RJ_Rect({
+            x: -width / 2,
+            y: -height / 2,
+            w: width,
+            h: height,
+            a: 1,
+            noiseScale: 0.5,
             clrarray: arr
         })
-
-        list_sky.push(c)
+        list_sky.push(sky)
+    }
+    for (let i = 0; i < 1; i++) {
+        list_sky[i].draw();
     }
 
 
+    // hill
+    colorArray = ["#FFC04B", "#e1edff", "#ffeed7", "#FFDD9C"];
+    colorArray = shuffle(colorArray);
+    let arr = colorArray.slice(0, 4);
+    let hill = new RJ_Hill({
+        x: 100,
+        y: 100,
+        w: 100,
+        h: 30,
+        a: 1,
+        noiseScale: 1,
+        clrarray: arr
+    })
+    list_hill.push(hill);
 
-    background(255, 237, 185);
+    list_hill.forEach(h => {
+        h.draw();
+    })
 
-    list_sky.forEach(c => {
-        shader(noiseShader);
-        c.draw();
-    });
+
+    resetShader();
+    blendMode(SCREEN);
+    fill("#ffa600");
+    let padding = 100;
+    circle(random(padding, width - padding) - width / 2, -height / 6, 50)
+
+
 
 }
 
@@ -65,7 +85,8 @@ function noiseMaterial() {
     finalColor.begin();
     let coord = finalColor.texCoord;
     let uSeed = uniformFloat('uSeed', () => 0);
-    let n = noise(coord.x * 0.45 + uSeed, coord.y * 0.45 + uSeed);
+    let uNoiseScale = uniformFloat('noiseScale', () => noiseScale);
+    let n = noise(coord.x * uNoiseScale + uSeed, coord.y * uNoiseScale + uSeed);
 
     let colorA = uniformVec4('colorA', () => paletteColors[0]);
     let colorB = uniformVec4('colorB', () => paletteColors[1]);
@@ -80,6 +101,7 @@ function noiseMaterial() {
     let freqY = 10;
     let maskNoise = noise(coord.x * freqX + uSeed, coord.y * freqY + uSeed);
     let mask = step(0.05, maskNoise);
+    let uMaskAlpha = uniformFloat('maskAlpha', () => maskAlpha);
 
     let r = [1, 0, 0, 1];
     let g = [0, 1, 0, 1];
@@ -99,7 +121,7 @@ function noiseMaterial() {
 
 
 
-    finalColor.set([mixall.x, mixall.y, mixall.z, mask]);
+    finalColor.set([mixall.x, mixall.y, mixall.z, mask * uMaskAlpha]);
     // finalColor.set([mixall.x, mixall.y, mixall.z, 1]);
     finalColor.end();
 }
@@ -160,6 +182,8 @@ class RJ_Rect {
         this.y = args.y;
         this.w = args.w;
         this.h = args.h
+        this.a = args.a;
+        this.noiseScale = args.noiseScale;
 
         this.clrarray = args.clrarray;
         this.seed = random(10000);
@@ -169,8 +193,44 @@ class RJ_Rect {
         push();
         translate(this.x, this.y);
         paletteColors = hex2float(this.clrarray)
+        maskAlpha = this.a;
+        noiseScale = this.noiseScale;
+        shader(noiseShader);
         noiseShader.setUniform('uSeed', this.seed);
-        rect(0, 0, this.w, h);
+        rect(0, 0, this.w, this.h);
+        pop();
+    }
+}
+
+class RJ_Hill {
+    constructor(args) {
+        this.x = args.x;
+        this.y = args.y;
+        this.w = args.w;
+        this.h = args.h;
+        this.a = args.a;
+        this.noiseScale = args.noiseScale;
+
+        this.clrarray = args.clrarray;
+        this.seed = random(100000);
+    }
+
+    draw() {
+        push();
+        translate(this.x, this.y);
+        paletteColors = hex2float(this.clrarray);
+        maskAlpha = this.a;
+        shader(noiseShader);
+        noiseShader.setUniform('uSeed', this.seed);
+        beginShape();
+        vertex(0, 0);
+        vertex(this.w, 0);
+        for (let i = 0; i < 10; i++) {
+            let x = this.x + this.w - i;
+            let amp = noise(x);
+            vertex(x, this.h + amp);
+        }
+        endShape(CLOSE);
         pop();
     }
 }
