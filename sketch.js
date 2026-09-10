@@ -4,25 +4,50 @@ let voronoiShader;
 let woodShader;
 
 let list_sky = [];
-let colorArray = ["#FFEDB9", "#FFCB56", "#FFA259", "#FF7E7E"];
+let colorArray = ["#FFCB56", "#FFA259", "#FF7E7E", "#F9B637", "#FFDD9C"];
 
 let paletteColors = [];
 
 function setup() {
     createCanvas(400, 400, WEBGL);
+
     noiseShader = buildMaterialShader(noiseMaterial);
     noStroke();
 
     paletteColors = hex2float(colorArray);
 
-    let c = new RJ_Cirlce({
-        x: 20,
-        y: 100,
-        r: 100,
-        clrarray: colorArray
-    })
+    // let c = new RJ_Cirlce({
+    //     x: 20,
+    //     y: 100,
+    //     r: 100,
+    //     clrarray: colorArray
+    // })
 
-    list_sky.push(c)
+    // list_sky.push(c)
+
+
+    for (let i = 0; i < 50; i++) {
+
+        colorArray = shuffle(colorArray);
+        let arr = colorArray.slice(0, 4);
+        let c = new RJ_Cirlce({
+            x: random(-width / 2, width / 2),
+            y: random(-height / 2, height / 2),
+            r: random(50, 200),
+            clrarray: arr
+        })
+
+        list_sky.push(c)
+    }
+
+
+
+    background(255, 237, 185);
+
+    list_sky.forEach(c => {
+        shader(noiseShader);
+        c.draw();
+    });
 
 }
 
@@ -40,7 +65,7 @@ function noiseMaterial() {
     finalColor.begin();
     let coord = finalColor.texCoord;
     let uSeed = uniformFloat('uSeed', () => 0);
-    let n = noise(coord.x * 0.8 + uSeed, coord.y * 0.8 + uSeed);
+    let n = noise(coord.x * 0.45 + uSeed, coord.y * 0.45 + uSeed);
 
     let colorA = uniformVec4('colorA', () => paletteColors[0]);
     let colorB = uniformVec4('colorB', () => paletteColors[1]);
@@ -84,12 +109,7 @@ function noiseMaterial() {
 
 function draw() {
 
-    background(255, 237, 185);
-    shader(noiseShader);
 
-    list_sky.forEach(c => {
-        c.draw();
-    });
 
 }
 
@@ -130,6 +150,27 @@ class RJ_Cirlce {
         paletteColors = hex2float(this.clrarray)
         noiseShader.setUniform('uSeed', this.seed);
         circle(0, 0, this.r);
+        pop();
+    }
+}
+
+class RJ_Rect {
+    constructor(args) {
+        this.x = args.x;
+        this.y = args.y;
+        this.w = args.w;
+        this.h = args.h
+
+        this.clrarray = args.clrarray;
+        this.seed = random(10000);
+    }
+
+    draw() {
+        push();
+        translate(this.x, this.y);
+        paletteColors = hex2float(this.clrarray)
+        noiseShader.setUniform('uSeed', this.seed);
+        rect(0, 0, this.w, h);
         pop();
     }
 }
