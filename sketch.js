@@ -3,36 +3,33 @@ let noiseShader;
 let voronoiShader;
 let woodShader;
 
-let paletteColors = [
-    [0.1, 0.2, 0.4, 1],
-    [0.2, 0.6, 0.9, 1],
-    [0.95, 0.8, 0.2, 1],
-    [0.2, 0.85, 0.5, 1]
-];
+let colorArray = ["#FFEDB9", "#FFCB56", "#FFA259", "#FF7E7E"];
+
+let paletteColors = [];
 
 function setup() {
     createCanvas(400, 400, WEBGL);
-    myShader = buildMaterialShader(material);
     noiseShader = buildMaterialShader(noiseMaterial);
-    // woodShader = buildMaterialShader(woodMaterial);
-    // voronoiShader = buildMaterialShader(voronoiMaterial);
     noStroke();
+
+    paletteColors = hex2float(colorArray);
 }
 
-function material() {
-    let time = millis() / 1000;
-    finalColor.begin();
-    let r = 0.2 + 0.5 * abs(sin(time + 0));
-    let g = 0.2 + 0.5 * abs(sin(time + 1));
-    let b = 0.2 + 0.5 * abs(sin(time + 2));
-    finalColor.set([r, g, b, 1]);
-    finalColor.end();
-}
+// function material() {
+//     let time = millis() / 1000;
+//     finalColor.begin();
+//     let r = 0.2 + 0.5 * abs(sin(time + 0));
+//     let g = 0.2 + 0.5 * abs(sin(time + 1));
+//     let b = 0.2 + 0.5 * abs(sin(time + 2));
+//     finalColor.set([r, g, b, 1]);
+//     finalColor.end();
+// }
 
 function noiseMaterial() {
     finalColor.begin();
     let coord = finalColor.texCoord;
-    let n = noise(coord.x * 4, coord.y * 4);
+    let uSeed = uniformFloat('uSeed', () => 0);
+    let n = noise(coord.x * 1 + uSeed, coord.y * 1 + uSeed);
 
     let colorA = uniformVec4('colorA', () => paletteColors[0]);
     let colorB = uniformVec4('colorB', () => paletteColors[1]);
@@ -43,146 +40,82 @@ function noiseMaterial() {
     let mix2 = mix(mix1, colorC, smoothstep(0.33, 0.66, n));
     let mix3 = mix(mix2, colorD, smoothstep(0.66, 1.0, n));
 
-    let freqX = 2; // x 方向頻率低,紋理沿 x 軸拉長
-    let freqY = 20; // y 方向頻率高,產生細密的年輪線條
-    let maskNoise = noise(coord.x * freqX, coord.y * freqY);
-    let mask = step(0.5, maskNoise); // 白色(1)維持彩色,黑色(0)變透明
+    let freqX = 5;
+    let freqY = 10;
+    let maskNoise = noise(coord.x * freqX + uSeed, coord.y * freqY + uSeed);
+    let mask = step(0.05, maskNoise);
 
-    finalColor.set([mix3.x, mix3.y, mix3.z, mask]);
+    let r = [1, 0, 0, 1];
+    let g = [0, 1, 0, 1];
+    let b = [0, 0, 1, 1];
+    let w = [1, 1, 1, 1];
+    let noise_rgb = noise(coord.x * 50, coord.y * 50);
+    let mixr = mix(r, g, smoothstep(0.0, 0.33, noise_rgb));
+    let mixg = mix(mixr, b, smoothstep(0.33, 0.66, noise_rgb));
+    let mixb = mix(mixg, w, smoothstep(0.66, 1.0, noise_rgb));
+
+    let factor = uniformFloat(0.2); // 0.2 = mixb 佔比
+
+    // screen blend: 1 - (1-a)*(1-b)，只會變亮不會變暗
+    let screenColor = [1, 1, 1, 1] - (([1, 1, 1, 1] - mix3) * ([1, 1, 1, 1] - mixb));
+
+    let mixall = mix(mix3, screenColor, factor);
+
+
+
+    finalColor.set([mixall.x, mixall.y, mixall.z, mask]);
+    // finalColor.set([mixall.x, mixall.y, mixall.z, 1]);
     finalColor.end();
 }
 
-function woodMaterial() {
-    finalColor.begin();
-    let coord = finalColor.texCoord;
-
-    let freqX = 2; // x 方向頻率低,紋理沿 x 軸拉長
-    let freqY = 20; // y 方向頻率高,產生細密的年輪線條
-    let n = noise(coord.x * freqX, coord.y * freqY);
-
-    let bw = step(0.5, n);
-    finalColor.set([bw, bw, bw, bw]);
-    finalColor.end();
-}
-
-
-function hash2(p) {
-    let a = dot(p, [127.1, 311.7]);
-    let b = dot(p, [269.5, 183.3]);
-    let sa = fract(sin(a) * 43758.5453123);
-    let sb = fract(sin(b) * 43758.5453123);
-    return [sa, sb];
-}
-
-function voronoiMaterial() {
-    finalColor.begin();
-    let coord = finalColor.texCoord;
-    let p = [coord.x * 6, coord.y * 6];
-    let ip = floor(p);
-    let fp = fract(p);
-
-    let lo = 0.0 - 1.0;
-    let mid = 0.0;
-    let hi = 1.0;
-
-    let offset0 = [lo, lo];
-    let point0 = hash2(ip + offset0);
-    let dist0 = length(offset0 + point0 - fp);
-
-    let offset1 = [mid, lo];
-    let point1 = hash2(ip + offset1);
-    let dist1 = length(offset1 + point1 - fp);
-
-    let offset2 = [hi, lo];
-    let point2 = hash2(ip + offset2);
-    let dist2 = length(offset2 + point2 - fp);
-
-    let offset3 = [lo, mid];
-    let point3 = hash2(ip + offset3);
-    let dist3 = length(offset3 + point3 - fp);
-
-    let offset4 = [mid, mid];
-    let point4 = hash2(ip + offset4);
-    let dist4 = length(offset4 + point4 - fp);
-
-    let offset5 = [hi, mid];
-    let point5 = hash2(ip + offset5);
-    let dist5 = length(offset5 + point5 - fp);
-
-    let offset6 = [lo, hi];
-    let point6 = hash2(ip + offset6);
-    let dist6 = length(offset6 + point6 - fp);
-
-    let offset7 = [mid, hi];
-    let point7 = hash2(ip + offset7);
-    let dist7 = length(offset7 + point7 - fp);
-
-    let offset8 = [hi, hi];
-    let point8 = hash2(ip + offset8);
-    let dist8 = length(offset8 + point8 - fp);
-
-    let minDist = min(dist0, dist1);
-    minDist = min(minDist, dist2);
-    minDist = min(minDist, dist3);
-    minDist = min(minDist, dist4);
-    minDist = min(minDist, dist5);
-    minDist = min(minDist, dist6);
-    minDist = min(minDist, dist7);
-    minDist = min(minDist, dist8);
-
-    finalColor.set([minDist, minDist, minDist, 1]);
-    finalColor.end();
-}
 
 
 
 function draw() {
 
-    background(245);
+    background(255, 237, 185);
 
-
-    // tree shape
+    // let t = millis() * 0.001;
     shader(noiseShader);
     push();
     rectMode(CENTER);
     translate(0, 0);
+    noiseShader.setUniform('uSeed', 40);
     rect(0, 0, 100, 100);
+    noiseShader.setUniform('uSeed', 100);
+    circle(50, 50, 100)
     pop();
 
-    // square with the color-shifting shader
-    // shader(myShader);
-    // rectMode(CENTER);
-    // push();
-    // translate(-100, 0);
-    // beginShape();
-    // vertex(0, 0, 0, 0);
-    // vertex(100, 0, 1, 0);
-    // vertex(100, 120, 1, 1);
-    // vertex(0, 100, 0, 1);
-    // endShape(CLOSE);
-    // pop();
+}
 
 
-    // circle with the noise shader
-    // shader(noiseShader);
-    // push();
-    // translate(100, 0);
-    // circle(0, 0, 100);
-    // pop();
+function hexToRgb(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) {
+        hex = hex.split('').map(c => c + c).join('');
+    }
+    const num = parseInt(hex, 16);
+    return {
+        r: (num >> 16) & 255,
+        g: (num >> 8) & 255,
+        b: num & 255
+    };
+}
 
-    // // wood-grain mask overlaid on top of the same circle: black areas become transparent
-    // shader(woodShader);
-    // push();
-    // translate(100, 0);
-    // circle(0, 0, 50);
-    // pop();
+function hex2float(colorArr) {
+    return colorArr.map(hex => {
+        let { r, g, b } = hexToRgb(hex);
+        return [r / 255, g / 255, b / 255, 1];
+    });
+}
 
 
-
-    // // triangle with the voronoi noise shader
-    // shader(voronoiShader);
-    // push();
-    // translate(0, 130);
-    // triangle(-60, -50, 60, -50, 0, 50);
-    // pop();
+class HexShape {
+    constructor(args) {
+        this.x = args.x;
+        this.y = args.y;
+        this.r = args.r;
+        this.clrarray = [];
+        this.seed = random(10000);
+    }
 }
